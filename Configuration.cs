@@ -13,6 +13,14 @@ using System.Threading.Tasks;
 
 namespace UniversalTrackerMarkers
 {
+    public enum EProximityDevice
+    {
+        HMD = 0,
+        LeftHand = 1,
+        RightHand = 2,
+        AnyHand = 3,
+    }
+
     public class MarkerConfiguration : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -82,6 +90,17 @@ namespace UniversalTrackerMarkers
             {
                 _texturePath = value;
                 RaisePropertyChanged(nameof(TexturePath));
+            }
+        }
+
+        private double _overlayOpacity = 1.0;
+        public double OverlayOpacity
+        {
+            get { return _overlayOpacity; }
+            set
+            {
+                _overlayOpacity = value;
+                RaisePropertyChanged(nameof(OverlayOpacity));
             }
         }
 
@@ -161,12 +180,134 @@ namespace UniversalTrackerMarkers
                 RaisePropertyChanged(nameof(RotateZ));
             }
         }
+
+        private bool _proximityFeaturesEnabled = false;
+        public bool ProximityFeaturesEnabled
+        {
+            get { return _proximityFeaturesEnabled; }
+            set
+            {
+                _proximityFeaturesEnabled = value;
+                RaisePropertyChanged(nameof(ProximityFeaturesEnabled));
+            }
+        }
+
+        private EProximityDevice _proximityDevice = EProximityDevice.HMD;
+        public EProximityDevice ProximityDevice
+        {
+            get { return _proximityDevice; }
+            set
+            {
+                _proximityDevice = value;
+                RaisePropertyChanged(nameof(ProximityDevice));
+            }
+        }
+
+        private double _proximityFadeDistMax = 2.0;
+        public double ProximityFadeDistMax
+        {
+            get { return _proximityFadeDistMax; }
+            set
+            {
+                _proximityFadeDistMax = value;
+                RaisePropertyChanged(nameof(ProximityFadeDistMax));
+            }
+        }
+
+        private double _proximityFadeDistMin = 1.0;
+        public double ProximityFadeDistMin
+        {
+            get { return _proximityFadeDistMin; }
+            set
+            {
+                _proximityFadeDistMin = value;
+                RaisePropertyChanged(nameof(ProximityFadeDistMin));
+            }
+        }
+
+        private bool _oscEnabled = false;
+        public bool OscEnabled
+        {
+            get { return _oscEnabled; }
+            set
+            {
+                _oscEnabled = value;
+                RaisePropertyChanged(nameof(OscEnabled));
+            }
+        }
+
+        private string? _oscAddress = null;
+        public string? OscAddress
+        {
+            get { return _oscAddress; }
+            set
+            {
+                _oscAddress = value;
+                RaisePropertyChanged(nameof(OscAddress));
+            }
+        }
+
+        private bool _oscStartHidden = false;
+        public bool OscStartHidden
+        {
+            get { return _oscStartHidden; }
+            set
+            {
+                _oscStartHidden = value;
+                RaisePropertyChanged(nameof(OscStartHidden));
+            }
+        }
+    }
+
+    public class OscConfiguration : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public void RaisePropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool _enabled = false;
+        public bool Enabled
+        {
+            get { return _enabled; }
+            set
+            {
+                _enabled = value;
+                RaisePropertyChanged(nameof(Enabled));
+            }
+        }
+
+        private string _listenAddress = "127.0.0.1";
+        public string ListenAddress
+        {
+            get { return _listenAddress; }
+            set
+            {
+                _listenAddress = value;
+                RaisePropertyChanged(nameof(ListenAddress));
+            }
+        }
+
+        private int _listenPort = 37321;
+        public int ListenPort
+        {
+            get { return _listenPort; }
+            set
+            {
+                _listenPort = value;
+                RaisePropertyChanged(nameof(ListenPort));
+            }
+        }
     }
 
     public class Configuration
     {
         //public List<MarkerConfiguration> Markers { get; set; } = new List<MarkerConfiguration>();
         public ObservableCollection<MarkerConfiguration> Markers { get; set; } = new ObservableCollection<MarkerConfiguration>();
+
+        public OscConfiguration Osc { get; set; } = new OscConfiguration();
     }
 
     public class ConfigLoader

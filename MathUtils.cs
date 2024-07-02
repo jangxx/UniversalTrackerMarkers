@@ -40,6 +40,16 @@ namespace UniversalTrackerMarkers
             });
         }
 
+        public static Vector<float> extractTranslationFromOVR34(ref HmdMatrix34_t ovrMat)
+        {
+            return Vector<float>.Build.DenseOfArray(new float[]
+            {
+                ovrMat.m3,
+                ovrMat.m7,
+                ovrMat.m11,
+            });
+        }
+
         public static float Cosf(float input)
         {
             return (float)Cos(input);

@@ -7,13 +7,18 @@
         xmlns:local="clr-namespace:UniversalTrackerMarkers"
         mc:Ignorable="d"
         Title="Universal Tracker Markers"
-        Height="500"
         Width="550"
         ResizeMode="CanMinimize"
         Closing="HandleMainWindowClosing"
+        SizeToContent="Height"
 >
     <Window.Resources>
-        <local:DoubleConverter x:Key="DoubleConverter" />
+        <local:IntConverter x:Key="IntConverter" />
+        <ObjectDataProvider x:Key="ProximityDeviceEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="local:EProximityDevice" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
     </Window.Resources>
     <DockPanel LastChildFill="True">
         <Menu DockPanel.Dock="Top">
@@ -21,140 +26,242 @@
                 <MenuItem Header="_Save config" Click="HandleSaveConfigButton"></MenuItem>
                 <MenuItem Header="_Refresh devices" Click="HandleRefreshDevicesButton"></MenuItem>
             </MenuItem>
-            <!--<MenuItem Header="_Marker">
-                <MenuItem Header="_Create" Click="HandleCreateMarkerButton"></MenuItem>
-            </MenuItem>-->
         </Menu>
-        <DockPanel DockPanel.Dock="Left" LastChildFill="True">
-            <Button Click="HandleCreateMarkerButton" DockPanel.Dock="Top">
-                Add marker
-            </Button>
-            <ListBox
-                Width="150"
-                ItemsSource="{Binding CurrentConfig.Markers}"
-                DisplayMemberPath="Name"
-                Name="MarkerList"
-            >
-                <ListBox.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="Delete" Click="HandleDeleteMarkerClick"></MenuItem>
-                    </ContextMenu>
-                </ListBox.ContextMenu>
-            </ListBox>
-        </DockPanel>
+        <TabControl>
+            <TabItem Header="Markers">
+                <DockPanel LastChildFill="True">
+                    <DockPanel DockPanel.Dock="Left" LastChildFill="True">
+                        <Button Click="HandleCreateMarkerButton" DockPanel.Dock="Top">
+                            Add marker
+                        </Button>
+                        <ListBox
+                            Width="150"
+                            ItemsSource="{Binding CurrentConfig.Markers}"
+                            DisplayMemberPath="Name"
+                            Name="MarkerList"
+                        >
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Delete" Click="HandleDeleteMarkerClick"></MenuItem>
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
+                        </ListBox>
+                    </DockPanel>
 
-        <Grid>
-            <StackPanel Margin="10,10,10,10" x:Name="ConfigurationStackPanel" d:Visibility="Visible">
-                <StackPanel.Style>
-                    <Style TargetType="{x:Type StackPanel}">
-                        <Setter Property="Visibility" Value="Visible" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding ElementName=MarkerList, Path=SelectedIndex}" Value="-1">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </StackPanel.Style>
-                
-                <GroupBox Header="General settings">
-                    <StackPanel Margin="5,5,5,5">
-                        <CheckBox Content="Enabled" IsChecked="{Binding SelectedItem.Enabled, ElementName=MarkerList}" />
-                        <local:LabeledInput LabelWidth="150" LabelText="Marker name" InputText="{Binding SelectedItem.Name, ElementName=MarkerList, Mode=TwoWay}" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="150"></ColumnDefinition>
-                                <ColumnDefinition Width="*"></ColumnDefinition>
-                            </Grid.ColumnDefinitions>
-                            <Label  Grid.Column="0" Height="28" Content="Attached to device" HorizontalAlignment="Left"></Label>
-                            <ComboBox
-                                Grid.Column="1"
-                                Height="20"
-                                DisplayMemberPath="DisplayName"
-                                SelectedValuePath="Serial"
-                                ItemsSource="{Binding DeviceList}"
-                                SelectedValue="{Binding SelectedItem.TrackerSN, ElementName=MarkerList}"
-                                Margin="0,0,5,0"
+                    <Grid>
+                        <StackPanel Margin="10,10,10,10" x:Name="ConfigurationStackPanel" d:Visibility="Visible">
+                            <StackPanel.Style>
+                                <Style TargetType="{x:Type StackPanel}">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ElementName=MarkerList, Path=SelectedIndex}" Value="-1">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+
+                            <GroupBox Header="General settings">
+                                <StackPanel Margin="5,5,5,5">
+                                    <CheckBox Content="Marker enabled" IsChecked="{Binding SelectedItem.Enabled, ElementName=MarkerList}" />
+                                    <local:LabeledInput LabelWidth="150" LabelText="Marker name" InputText="{Binding SelectedItem.Name, ElementName=MarkerList, Mode=TwoWay}" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="150"></ColumnDefinition>
+                                            <ColumnDefinition Width="*"></ColumnDefinition>
+                                        </Grid.ColumnDefinitions>
+                                        <Label  Grid.Column="0" Height="28" Content="Attached to device" HorizontalAlignment="Left"></Label>
+                                        <ComboBox
+                                            Grid.Column="1"
+                                            Height="20"
+                                            DisplayMemberPath="DisplayName"
+                                            SelectedValuePath="Serial"
+                                            ItemsSource="{Binding DeviceList}"
+                                            SelectedValue="{Binding SelectedItem.TrackerSN, ElementName=MarkerList}"
+                                            Margin="0,0,5,0"
+                                        />
+                                    </Grid>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="150"></ColumnDefinition>
+                                            <ColumnDefinition Width="*"></ColumnDefinition>
+                                            <ColumnDefinition Width="40"></ColumnDefinition>
+                                        </Grid.ColumnDefinitions>
+                                        <Label  Grid.Column="0" Height="28" Content="Image path" HorizontalAlignment="Left"></Label>
+                                        <TextBox Grid.Column="1" Height="20" Text="{Binding SelectedItem.TexturePath, ElementName=MarkerList}" Margin="0,0,5,0"></TextBox>
+                                        <Button Grid.Column="2" FontSize="9" VerticalAlignment="Center" Height="20" Click="HandleOpenTextureButton">Select</Button>
+                                    </Grid>
+                                    <local:LabeledSlider LabelWidth="100" LabelText="Overlay opacity" Min="0.01" Max="1.0"
+                                        Value="{Binding SelectedItem.OverlayOpacity, ElementName=MarkerList, Mode=TwoWay}"
+                                    />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Transform">
+                                <StackPanel Margin="5,5,5,5">
+                                    <local:LabeledSlider LabelWidth="120" LabelText="Overlay width (m)" Min="0.05" Max="5.0"
+                                        Value="{Binding SelectedItem.OverlayWidth, ElementName=MarkerList, Mode=TwoWay}"
+                                    />  
+                                    <Separator />
+                                    <local:LabeledSlider LabelWidth="120" LabelText="X axis (m)" Min="-5.0" Max="5.0"
+                                        Value="{Binding SelectedItem.OffsetX, ElementName=MarkerList, Mode=TwoWay}"
+                                    />
+                                    <local:LabeledSlider LabelWidth="120" LabelText="Y axis (m)" Min="-5.0" Max="5.0"
+                                        Value="{Binding SelectedItem.OffsetY, ElementName=MarkerList, Mode=TwoWay}"
+                                    />
+                                    <local:LabeledSlider LabelWidth="120" LabelText="Z axis (m)" Min="-5.0" Max="5.0"
+                                        Value="{Binding SelectedItem.OffsetZ, ElementName=MarkerList, Mode=TwoWay}"
+                                    />
+                                    <local:LabeledSlider LabelWidth="120" LabelText="X rotation (deg)" Min="-180.0" Max="180.0"
+                                        Value="{Binding SelectedItem.RotateX, ElementName=MarkerList, Mode=TwoWay}"
+                                    />
+                                    <local:LabeledSlider LabelWidth="120" LabelText="Y rotation (deg)" Min="-180.0" Max="180.0"
+                                        Value="{Binding SelectedItem.RotateY, ElementName=MarkerList, Mode=TwoWay}"
+                                    />
+                                    <local:LabeledSlider LabelWidth="120" LabelText="Z rotation (deg)" Min="-180.0" Max="180.0"
+                                        Value="{Binding SelectedItem.RotateZ, ElementName=MarkerList, Mode=TwoWay}"
+                                    />
+                                    <Button Click="HandleResetTransformButton" Margin="0,5,0,0">Reset transform</Button>
+
+                                    <Grid Margin="0,5,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="200"></ColumnDefinition>
+                                            <ColumnDefinition Width="*"></ColumnDefinition>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" VerticalAlignment="Center" Height="20" Click="HandleSetTransformRelativeButton" Margin="0,0,5,0">Set transform relative to device</Button>
+                                        <ComboBox
+                                            Grid.Column="1"
+                                            Height="20"
+                                            DisplayMemberPath="DisplayName"
+                                            SelectedValuePath="Serial"
+                                            ItemsSource="{Binding DeviceList}"
+                                            x:Name="RelativeDeviceSelect"
+                                        />
+                                    </Grid>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Proximity">
+                                <StackPanel Margin="5,5,5,5">
+                                    <CheckBox Content="Proximity features enabled" IsChecked="{Binding SelectedItem.ProximityFeaturesEnabled, ElementName=MarkerList}" />
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="150"></ColumnDefinition>
+                                            <ColumnDefinition Width="*"></ColumnDefinition>
+                                        </Grid.ColumnDefinitions>
+                                        <Label  Grid.Column="0" Height="28" Content="Proximity device" HorizontalAlignment="Left"></Label>
+                                        <ComboBox
+                                            Grid.Column="1"
+                                            Height="20"
+                                            SelectedValue="{Binding SelectedItem.ProximityDevice, ElementName=MarkerList}"
+                                            Margin="0,0,5,0"
+                                            ItemsSource="{Binding Source={StaticResource ProximityDeviceEnum}}"
+                                            IsEnabled="{Binding SelectedItem.ProximityFeaturesEnabled, ElementName=MarkerList}"
+                                        />
+                                    </Grid>
+
+                                    <local:LabeledSlider LabelWidth="150" LabelText="Full opacity distance" Min="0.0" Max="10.0"
+                                        Value="{Binding SelectedItem.ProximityFadeDistMin, ElementName=MarkerList, Mode=TwoWay}"
+                                        IsEnabled="{Binding SelectedItem.ProximityFeaturesEnabled, ElementName=MarkerList}"
+                                    />
+                                    <local:LabeledSlider LabelWidth="150" LabelText="Zero opacity distance" Min="0.0" Max="10.0"
+                                        Value="{Binding SelectedItem.ProximityFadeDistMax, ElementName=MarkerList, Mode=TwoWay}"
+                                        IsEnabled="{Binding SelectedItem.ProximityFeaturesEnabled, ElementName=MarkerList}"
+                                    />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="OSC Control">
+                                <StackPanel Margin="5,5,5,5">
+                                    <CheckBox Content="OSC control enabled" IsChecked="{Binding SelectedItem.OscEnabled, ElementName=MarkerList}" />
+
+                                    <local:LabeledInput LabelWidth="150" LabelText="OSC Address" Margin="0,5,0,0"
+                                        InputText="{Binding SelectedItem.OscAddress, ElementName=MarkerList, Mode=TwoWay}"
+                                        IsEnabled="{Binding SelectedItem.OscEnabled, ElementName=MarkerList}"
+                                    />
+
+                                    <TextBlock
+                                        TextWrapping="Wrap"
+                                        Text="Send a single boolean true to the address to show the overlay and a single boolean false to hide it." Foreground="#FF777777"
+                                    />
+
+                                    <CheckBox Content="Start hidden when OSC is used" IsChecked="{Binding SelectedItem.OscStartHidden, ElementName=MarkerList}" Margin="0,10,0,0" />
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+
+                        <Grid Height="500" d:Visibility="Collapsed">
+                            <Grid.Style>
+                                <Style TargetType="{x:Type Grid}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ElementName=MarkerList, Path=SelectedIndex}" Value="-1">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+
+                            <TextBlock
+                                TextWrapping="Wrap"
+                                Text="Select a marker from the list on the left to configure it"
+                                FontSize="14"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                TextAlignment="Center"
+                                Margin="20,0,20,0"
+                                x:Name="SelectInfoTextBlock"
                             />
                         </Grid>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="150"></ColumnDefinition>
-                                <ColumnDefinition Width="*"></ColumnDefinition>
-                                <ColumnDefinition Width="40"></ColumnDefinition>
-                            </Grid.ColumnDefinitions>
-                            <Label  Grid.Column="0" Height="28" Content="Image path" HorizontalAlignment="Left"></Label>
-                            <TextBox Grid.Column="1" Height="20" Text="{Binding SelectedItem.TexturePath, ElementName=MarkerList}" Margin="0,0,5,0"></TextBox>
-                            <Button Grid.Column="2" FontSize="9" VerticalAlignment="Center" Height="20" Click="HandleOpenTextureButton">Select</Button>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
-                <GroupBox Header="Transform">
-                    <StackPanel Margin="5,5,5,5">
-                        <local:LabeledSlider LabelWidth="100" LabelText="Image width (m)" Min="0.05" Max="5.0"
-                            Value="{Binding SelectedItem.OverlayWidth, ElementName=MarkerList, Mode=TwoWay}"
-                        />
-                        <Separator />
-                        <local:LabeledSlider LabelWidth="100" LabelText="X axis (m)" Min="-5.0" Max="5.0"
-                            Value="{Binding SelectedItem.OffsetX, ElementName=MarkerList, Mode=TwoWay}"
-                        />
-                        <local:LabeledSlider LabelWidth="100" LabelText="Y axis (m)" Min="-5.0" Max="5.0"
-                            Value="{Binding SelectedItem.OffsetY, ElementName=MarkerList, Mode=TwoWay}"
-                        />
-                        <local:LabeledSlider LabelWidth="100" LabelText="Z axis (m)" Min="-5.0" Max="5.0"
-                            Value="{Binding SelectedItem.OffsetZ, ElementName=MarkerList, Mode=TwoWay}"
-                        />
-                        <local:LabeledSlider LabelWidth="100" LabelText="X rotation (deg)" Min="-180.0" Max="180.0"
-                            Value="{Binding SelectedItem.RotateX, ElementName=MarkerList, Mode=TwoWay}"
-                        />
-                        <local:LabeledSlider LabelWidth="100" LabelText="Y rotation (deg)" Min="-180.0" Max="180.0"
-                            Value="{Binding SelectedItem.RotateY, ElementName=MarkerList, Mode=TwoWay}"
-                        />
-                        <local:LabeledSlider LabelWidth="100" LabelText="Z rotation (deg)" Min="-180.0" Max="180.0"
-                            Value="{Binding SelectedItem.RotateZ, ElementName=MarkerList, Mode=TwoWay}"
-                        />
-                        <Button Click="HandleResetTransformButton" Margin="0,5,0,0">Reset transform</Button>
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+            <TabItem Header="OSC">
+                <StackPanel Margin="10,10,10,10">
+                    <GroupBox Header="Server settings" >
+                        <StackPanel Margin="5,5,5,5">
+                            <CheckBox Content="OSC server enabled" IsChecked="{Binding CurrentConfig.Osc.Enabled}" />
 
-                        <Grid Margin="0,5,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="200"></ColumnDefinition>
-                                <ColumnDefinition Width="*"></ColumnDefinition>
-                            </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" VerticalAlignment="Center" Height="20" Click="HandleSetTransformRelativeButton" Margin="0,0,5,0">Set transform relative to device</Button>
-                            <ComboBox
-                                Grid.Column="1"
-                                Height="20"
-                                DisplayMemberPath="DisplayName"
-                                SelectedValuePath="Serial"
-                                ItemsSource="{Binding DeviceList}"
-                                x:Name="RelativeDeviceSelect"
+                            <local:LabeledInput LabelWidth="150" LabelText="Listen address"
+                                InputText="{Binding CurrentConfig.Osc.ListenAddress, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type local:MainWindow}, Mode=FindAncestor}}"
+                                IsEnabled="{Binding CurrentConfig.Osc.Enabled, RelativeSource={RelativeSource AncestorType={x:Type local:MainWindow}, Mode=FindAncestor}}"
                             />
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
-            </StackPanel>
-
-            <TextBlock
-                TextWrapping="Wrap"
-                Text="Select a marker from the list on the left to configure it"
-                FontSize="14"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                TextAlignment="Center"
-                Margin="20,0,20,0"
-                x:Name="SelectInfoTextBlock"
-                 d:Visibility="Collapsed"
-            >
-                <TextBlock.Style>
-                    <Style TargetType="{x:Type TextBlock}">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding ElementName=MarkerList, Path=SelectedIndex}" Value="-1">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
-        </Grid>
+                            <local:LabeledInput LabelWidth="150" LabelText="Listen port"
+                                InputText="{Binding CurrentConfig.Osc.ListenPort, Mode=TwoWay, Converter={StaticResource IntConverter}, RelativeSource={RelativeSource AncestorType={x:Type local:MainWindow}, Mode=FindAncestor}}"
+                                IsEnabled="{Binding CurrentConfig.Osc.Enabled, RelativeSource={RelativeSource AncestorType={x:Type local:MainWindow}, Mode=FindAncestor}}"
+                            />
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="Server status">
+                        <StackPanel Margin="5,5,5,5">
+                            <Label Content="Running" Foreground="#FF55D202" FontWeight="Bold" d:Visibility="Visible">
+                                <Label.Style>
+                                    <Style TargetType="{x:Type Label}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding OscState.ServerRunning}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Label.Style>
+                            </Label>
+                            <StackPanel d:Visibility="Visible">
+                                <StackPanel.Style>
+                                    <Style TargetType="{x:Type StackPanel}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding OscState.ServerRunning}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <Label Content="Not Running" FontWeight="Bold" Foreground="#FFD20202" />
+                                <Label Content="{Binding OscState.ErrorMessage}" d:Content="Example error" FontWeight="Normal" />
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
     </DockPanel>
 </Window>

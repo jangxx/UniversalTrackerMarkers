@@ -55,6 +55,12 @@ namespace UniversalTrackerMarkers
         }
     }
 
+    public class OscDisplayState
+    {
+        public bool ServerRunning { get; set; } = false;
+        public string ErrorMessage { get; set; } = string.Empty;
+    }
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -63,7 +69,12 @@ namespace UniversalTrackerMarkers
         private Configuration _currentConfig = new Configuration();
         public Configuration CurrentConfig { get { return _currentConfig; } }
 
+        private OscDisplayState _oscState = new OscDisplayState();
+        public OscDisplayState OscState {  get { return _oscState; } }
+
         private OpenVRManager _openVRManager = new OpenVRManager();
+        private OscListener? _oscListener;
+
         private bool _hasUnsavedChanges = false;
         private bool _suppressInputEvents = false;
 
@@ -71,38 +82,17 @@ namespace UniversalTrackerMarkers
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
+        public void RaisePropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         public MainWindow()
         {
             InitializeComponent();
             DataContext = this;
 
-            _currentConfig.Markers.CollectionChanged += HandleMarkersCollectionChanged;
-        }
-
-        private void HandleMarkersCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-        {
-            if (!_suppressInputEvents)
-            {
-                _hasUnsavedChanges = true;
-            }
-
-            foreach (var marker in _currentConfig.Markers)
-            {
-                marker.PropertyChanged -= HandleMarkerPropertyChanged;
-                marker.PropertyChanged += HandleMarkerPropertyChanged;
-            }
-
-            UpdateOverlays();
-        }
-
-        private void HandleMarkerPropertyChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            if (!_suppressInputEvents)
-            {
-                _hasUnsavedChanges = true;
-            }
-
-            UpdateOverlays();
+            SetupPropertyEventListeners();
         }
 
         public bool Init()
@@ -112,6 +102,8 @@ namespace UniversalTrackerMarkers
             if (!initOVRResult) return false;
 
             UpdateControllersAndTrackers();
+
+            _openVRManager.StartThread();
             return true;
         }
 
@@ -119,11 +111,21 @@ namespace UniversalTrackerMarkers
         {
             _openVRManager.UpdateDevices();
 
-            DeviceList.Clear();
-
             foreach (var device in _openVRManager.GetAllDevices())
             {
-                DeviceList.Add(new DisplayDeviceListItem(device, true));
+                var newListItem = new DisplayDeviceListItem(device, true);
+
+                var existingItem = DeviceList.FirstOrDefault(d => d.Serial == newListItem.Serial);
+
+                if (existingItem == null)
+                {
+                    DeviceList.Add(newListItem);
+                }
+                else
+                {
+                    existingItem.Type = newListItem.Type;
+                    existingItem.Exists = newListItem.Exists;
+                }
             }
         }
 
@@ -151,14 +153,9 @@ namespace UniversalTrackerMarkers
 
             _currentConfig = config;
 
-            _currentConfig.Markers.CollectionChanged += HandleMarkersCollectionChanged;
-            foreach (var marker in _currentConfig.Markers)
-            {
-                marker.PropertyChanged -= HandleMarkerPropertyChanged;
-                marker.PropertyChanged += HandleMarkerPropertyChanged;
-            }
+            SetupPropertyEventListeners();
 
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentConfig)));
+            RaisePropertyChanged(nameof(CurrentConfig));
 
             foreach(var marker in _currentConfig.Markers)
             {
@@ -171,6 +168,7 @@ namespace UniversalTrackerMarkers
             _hasUnsavedChanges = false;
 
             UpdateOverlays();
+            UpdateOscListener();
         }
 
         private void SaveConfig(string path)
@@ -190,14 +188,116 @@ namespace UniversalTrackerMarkers
             }
         }
 
+        private void SetupPropertyEventListeners()
+        {
+            _currentConfig.Markers.CollectionChanged += HandleMarkersCollectionChanged;
+
+            foreach (var marker in _currentConfig.Markers)
+            {
+                marker.PropertyChanged -= HandleMarkerPropertyChanged;
+                marker.PropertyChanged += HandleMarkerPropertyChanged;
+            }
+
+            _currentConfig.Osc.PropertyChanged += HandleOscConfigChanged;
+        }
+
+        private void HandleOscConfigChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (!_suppressInputEvents)
+            {
+                _hasUnsavedChanges = true;
+            }
+
+            UpdateOscListener();
+        }
+
+        private void UpdateOscListener()
+        {
+            if (_oscListener != null)
+            {
+                _oscListener.Stop();
+                _oscListener = null;
+
+                _oscState.ServerRunning = false;
+                _oscState.ErrorMessage = string.Empty;
+                RaisePropertyChanged(nameof(OscState));
+            }
+
+            OscConfiguration oscConfig = _currentConfig.Osc;
+
+            if (oscConfig.Enabled && oscConfig.ListenAddress.Length > 0)
+            {
+                _oscListener = new OscListener();
+
+                try
+                {
+                    _oscListener.OscListenerCrashed += HandleOscListenerCrashed;
+                    _oscListener.OscBooleanMessageReceived += HandleOscBooleanMessageReceived;
+
+                    _oscListener.Start(oscConfig.ListenAddress, oscConfig.ListenPort);
+
+                    _oscState.ServerRunning = true;
+                    _oscState.ErrorMessage = string.Empty;
+                    RaisePropertyChanged(nameof(OscState));
+                }
+                catch (Exception ex)
+                {
+                    _oscState.ServerRunning = false;
+                    _oscState.ErrorMessage = ex.Message;
+                    RaisePropertyChanged(nameof(OscState));
+
+                    _oscListener = null;
+                }
+            }
+        }
+
+        private void HandleMarkersCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            if (!_suppressInputEvents)
+            {
+                _hasUnsavedChanges = true;
+            }
+
+            foreach (var marker in _currentConfig.Markers)
+            {
+                marker.PropertyChanged -= HandleMarkerPropertyChanged;
+                marker.PropertyChanged += HandleMarkerPropertyChanged;
+            }
+
+            UpdateOverlays();
+        }
+
+        private void HandleMarkerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (!_suppressInputEvents)
+            {
+                _hasUnsavedChanges = true;
+            }
+
+            if (sender != null)
+            {
+                var marker = (MarkerConfiguration)sender;
+
+                if (e.PropertyName == nameof(marker.ProximityFadeDistMin) && marker.ProximityFadeDistMax < marker.ProximityFadeDistMin)
+                {
+                    marker.ProximityFadeDistMax = marker.ProximityFadeDistMin;
+                }
+                else if (e.PropertyName == nameof(marker.ProximityFadeDistMax) && marker.ProximityFadeDistMax < marker.ProximityFadeDistMin)
+                {
+                    marker.ProximityFadeDistMin = marker.ProximityFadeDistMax;
+                }
+            }
+
+            UpdateOverlays();
+        }
+
+
         private void CreateMarker()
         {
             var marker = new MarkerConfiguration();
             marker.Name = "New Marker";
 
             _currentConfig.Markers.Add(marker);
-
-            //UpdateDisplayProperties();
         }
 
         private void HandleCreateMarkerButton(object sender, RoutedEventArgs e)
@@ -272,7 +372,6 @@ namespace UniversalTrackerMarkers
             }
         }
 
-
         private void HandleSaveConfigButton(object sender, RoutedEventArgs e)
         {
             var defaultConfigFilePath = Path.Combine(
@@ -316,6 +415,41 @@ namespace UniversalTrackerMarkers
                 selectedConfig.RotateY = relativeRotation[1] / Math.PI * 180;
                 selectedConfig.RotateZ = relativeRotation[2] / Math.PI * 180;
             }
+        }
+
+        private void HandleOscBooleanMessageReceived(object? sender, EventArgs args)
+        {
+            var oscMessageReceivedArgs = (OscBooleanMessageReceivedArgs)args;
+
+            Debug.WriteLine("Received bool from " + oscMessageReceivedArgs.Address + " value:" + oscMessageReceivedArgs.Value);
+
+            var dispatcher = Application.Current.Dispatcher;
+            dispatcher.BeginInvoke(new Action(() =>
+            {
+                foreach(var marker in _currentConfig.Markers)
+                {
+                    if (marker.OscEnabled && marker.OscAddress == oscMessageReceivedArgs.Address)
+                    {
+                        _openVRManager.UpdateMarkerVisility(marker.Id, oscMessageReceivedArgs.Value);
+                    }
+                }
+            }));
+        }
+
+        private void HandleOscListenerCrashed(object? sender, EventArgs args)
+        {
+            var oscListenerCrashedArgs = (OscListenerCrashedArgs)args;
+
+            var dispatcher = Application.Current.Dispatcher;
+            dispatcher.BeginInvoke(new Action(() =>
+            {
+                _oscState.ServerRunning = false;
+                _oscState.ErrorMessage = oscListenerCrashedArgs.Message;
+                RaisePropertyChanged(nameof(OscState));
+
+                _oscListener?.Stop();
+                _oscListener = null;
+            }));
         }
     }
 }
