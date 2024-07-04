@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -11,7 +12,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
+using System.Windows.Media;
 using Valve.VR;
+using Vortice.Direct3D11;
+using static System.Net.Mime.MediaTypeNames;
+using System.Reflection.Metadata;
 
 namespace UniversalTrackerMarkers
 {
@@ -32,6 +38,8 @@ namespace UniversalTrackerMarkers
         public ETrackedDeviceClass Type { get; }
         public uint Handle { get; }
         public string SerialNumber { get; }
+        public ulong? SerialOverlayHandle { get; set; }
+        public ID3D11Texture2D? SerialOverlayTexture { get; set; }
     }
 
     internal class TrackedObjectListEntry
@@ -57,42 +65,48 @@ namespace UniversalTrackerMarkers
 
     internal class OpenVRManager
     {
+        private DirectXManager _directXManager;
+
         private CVRSystem? _cVR;
         private CancellationTokenSource _cancelTokenSource = new CancellationTokenSource();
         private Thread? _thread = null;
         private Dictionary<string, DeviceListEntry> _devices = new Dictionary<string, DeviceListEntry>();
         private Dictionary<int, ExistingOverlay> _overlays = new Dictionary<int, ExistingOverlay>();
+        private bool _serialNumbersShown = false;
 
-        public OpenVRManager()
+        public OpenVRManager(DirectXManager directXManager)
         {
-
+            _directXManager = directXManager;
         }
 
         public void UpdateDevices()
         {
             if (_cVR == null) return;
 
-            _devices.Clear();
-
-            try
+            lock (_devices)
             {
-                for (uint idx = 0; idx < OpenVR.k_unMaxTrackedDeviceCount; idx++)
+                _devices.Clear();
+
+                try
                 {
-                    var deviceClass = OpenVR.System.GetTrackedDeviceClass(idx);
-
-                    if (deviceClass == ETrackedDeviceClass.Invalid)
+                    for (uint idx = 0; idx < OpenVR.k_unMaxTrackedDeviceCount; idx++)
                     {
-                        break;
+                        var deviceClass = OpenVR.System.GetTrackedDeviceClass(idx);
+
+                        if (deviceClass == ETrackedDeviceClass.Invalid)
+                        {
+                            break;
+                        }
+
+                        var serialNumber = GetStringTrackedDeviceProperty(idx, ETrackedDeviceProperty.Prop_SerialNumber_String);
+
+                        _devices.Add(serialNumber, new DeviceListEntry(deviceClass, idx, serialNumber));
                     }
-
-                    var serialNumber = GetStringTrackedDeviceProperty(idx, ETrackedDeviceProperty.Prop_SerialNumber_String);
-
-                    _devices.Add(serialNumber, new DeviceListEntry(deviceClass, idx, serialNumber));
                 }
-            }
-            catch (OVRException e)
-            {
-                MessageBox.Show("Updating tracked devices encountered an unexpected OpenVR error: " + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                catch (OVRException e)
+                {
+                    MessageBox.Show("Updating tracked devices encountered an unexpected OpenVR error: " + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
@@ -211,6 +225,81 @@ namespace UniversalTrackerMarkers
                 {
                     ThrowOVRError(OpenVR.Overlay.ShowOverlay(overlay.HandleFront));
                     ThrowOVRError(OpenVR.Overlay.ShowOverlay(overlay.HandleBack));
+                }
+            }
+        }
+
+        private ID3D11Texture2D CreateSerialTextTexture(string serialNumber)
+        {
+            FormattedText text = new FormattedText(serialNumber,
+                new CultureInfo("en-us"),
+                FlowDirection.LeftToRight,
+                new Typeface("Arial"),
+                100,
+                Brushes.White,
+                1.0
+            );
+            text.TextAlignment = TextAlignment.Center;
+
+            DrawingVisual drawingVisual = new DrawingVisual();
+            DrawingContext drawingContext = drawingVisual.RenderOpen();
+
+            drawingContext.DrawText(text, new Point(512, 256));
+            drawingContext.Close();
+
+            RenderTargetBitmap bmp = new RenderTargetBitmap(1024, 512, 96, 96, PixelFormats.Pbgra32);
+            bmp.Render(drawingVisual);
+
+            return _directXManager.CreateTextureFromBitmap(bmp);
+        }
+
+        public void SetSerialNumbersShown(bool shown)
+        {
+            _serialNumbersShown = shown;
+
+            lock (_devices)
+            {
+                if (_serialNumbersShown)
+                {
+                    foreach (var device in _devices.Values)
+                    {
+                        if (!device.SerialOverlayHandle.HasValue)
+                        {
+                            ulong handle = OpenVR.k_ulOverlayHandleInvalid;
+                            ThrowOVRError(OpenVR.Overlay.CreateOverlay($"com.jangxx.markers.serial_{device.SerialNumber}", $"Universal Tracker Serial Overlay {device.SerialNumber}", ref handle));
+
+                            var dxTexture = CreateSerialTextTexture(device.SerialNumber);
+                            device.SerialOverlayTexture = dxTexture;
+
+                            Texture_t ovrTexture = new Texture_t();
+                            ovrTexture.eType = ETextureType.DirectX;
+                            ovrTexture.handle = dxTexture.NativePointer;
+                            ovrTexture.eColorSpace = EColorSpace.Auto;
+
+                            ThrowOVRError(OpenVR.Overlay.SetOverlayTexture(handle, ref ovrTexture));
+
+                            ThrowOVRError(OpenVR.Overlay.ShowOverlay(handle));
+                            ThrowOVRError(OpenVR.Overlay.SetOverlayWidthInMeters(handle, 0.3f));
+
+                            device.SerialOverlayHandle = handle;
+                        }
+                    }
+
+                    _directXManager.Flush();
+                }
+                else
+                {
+                    foreach (var device in _devices.Values)
+                    {
+                        if (device.SerialOverlayHandle.HasValue)
+                        {
+                            device.SerialOverlayTexture?.Dispose();
+
+                            ThrowOVRError(OpenVR.Overlay.DestroyOverlay(device.SerialOverlayHandle.Value));
+
+                            device.SerialOverlayHandle = null;
+                        }
+                    }
                 }
             }
         }
@@ -400,7 +489,7 @@ namespace UniversalTrackerMarkers
                 {
                     return; // cancellation was requested
                 }
-                
+
                 OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseRawAndUncalibrated, 0, poses);
 
                 var hmdPose = poses[0];
@@ -468,6 +557,39 @@ namespace UniversalTrackerMarkers
                             // otherwise just set the configured max opacity
                             ThrowOVRError(OpenVR.Overlay.SetOverlayAlpha(overlay.HandleFront, (float)overlay.MaxOpacity));
                             ThrowOVRError(OpenVR.Overlay.SetOverlayAlpha(overlay.HandleBack, (float)overlay.MaxOpacity));
+                        }
+                    }
+                }
+
+                if (_serialNumbersShown)
+                {
+                    var hmdPosition = MathUtils.extractTranslationFromOVR34(ref hmdPose.mDeviceToAbsoluteTracking);
+
+                    lock (_devices)
+                    {
+                        foreach (var device in _devices.Values)
+                        {
+                            if (!device.SerialOverlayHandle.HasValue) continue;
+
+                            var devicePose = poses[device.Handle];
+
+                            if (!devicePose.bPoseIsValid) continue;
+
+                            var deviceRotationInverse = MathUtils.OVR34ToMat44(ref devicePose.mDeviceToAbsoluteTracking).SubMatrix(0, 3, 0, 3).Inverse();
+
+                            var deviceRoationInverseFull = Matrix<float>.Build.DenseIdentity(4, 4);
+                            deviceRoationInverseFull.SetSubMatrix(0, 0, deviceRotationInverse);
+
+                            var devicePos = MathUtils.extractTranslationFromOVR34(ref devicePose.mDeviceToAbsoluteTracking);
+
+                            devicePos[1] += (device.Handle == 0) ? 0.25f : 0.1f; // move the overlay a bit higher on the headset so it doesn't clip when looking up
+
+                            var overlayMatrix = MathUtils.createTranslationMatrix44(devicePos) * MathUtils.LookAt44(hmdPosition, devicePos);
+
+                            HmdMatrix34_t ovrMatrix = new HmdMatrix34_t();
+                            MathUtils.CopyMat34ToOVR(ref overlayMatrix, ref ovrMatrix);                            
+
+                            ThrowOVRError(OpenVR.Overlay.SetOverlayTransformAbsolute(device.SerialOverlayHandle.Value, ETrackingUniverseOrigin.TrackingUniverseRawAndUncalibrated, ref ovrMatrix));
                         }
                     }
                 }

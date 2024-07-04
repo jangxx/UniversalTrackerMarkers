@@ -37,6 +37,31 @@ namespace UniversalTrackerMarkers
             Id = NextId++;
         }
 
+        public MarkerConfiguration(MarkerConfiguration cloneFrom)
+        {
+            _enabled = cloneFrom._enabled;
+            _name = cloneFrom._name + " (Copy)";
+            _trackerSN = cloneFrom._trackerSN;
+            _texturePath = cloneFrom._texturePath;
+            _overlayOpacity = cloneFrom._overlayOpacity;
+            _overlayWidth = cloneFrom._overlayWidth;
+            _offsetX = cloneFrom._offsetX;
+            _offsetY = cloneFrom._offsetY;
+            _offsetZ = cloneFrom._offsetZ;
+            _rotateX = cloneFrom._rotateX;
+            _rotateY = cloneFrom._rotateY;
+            _rotateZ = cloneFrom._rotateZ;
+
+            _proximityFeaturesEnabled = cloneFrom._proximityFeaturesEnabled;
+            _proximityFadeDistMin = cloneFrom._proximityFadeDistMin;
+            _proximityFadeDistMax = cloneFrom._proximityFadeDistMax;
+            _proximityDevice = cloneFrom._proximityDevice;
+
+            _oscAddress = cloneFrom._oscAddress;
+            _oscEnabled = cloneFrom._oscEnabled;
+            _oscStartHidden = cloneFrom._oscStartHidden;
+        }
+
         [JsonIgnore]
         public int Id { get; }
 

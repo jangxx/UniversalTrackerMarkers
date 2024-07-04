@@ -23,8 +23,11 @@
     <DockPanel LastChildFill="True">
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
-                <MenuItem Header="_Save config" Click="HandleSaveConfigButton"></MenuItem>
-                <MenuItem Header="_Refresh devices" Click="HandleRefreshDevicesButton"></MenuItem>
+                <MenuItem Header="_Save config" Click="HandleSaveConfigButton" />
+                <MenuItem Header="_Refresh devices" Click="HandleRefreshDevicesButton" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="_Show serial numbers on devices" IsCheckable="True" IsChecked="{Binding ShowSerialOnDevices}"/>
             </MenuItem>
         </Menu>
         <TabControl>
@@ -43,6 +46,7 @@
                             <ListBox.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Delete" Click="HandleDeleteMarkerClick"></MenuItem>
+                                    <MenuItem Header="Duplicate" Click="HandleDuplicateMarkerClick"></MenuItem>
                                 </ContextMenu>
                             </ListBox.ContextMenu>
                         </ListBox>
@@ -80,6 +84,16 @@
                                             SelectedValue="{Binding SelectedItem.TrackerSN, ElementName=MarkerList}"
                                             Margin="0,0,5,0"
                                         />
+                                        <!--<ComboBox
+                                            Grid.Column="1"
+                                            Height="20"
+                                            DisplayMemberPath="DisplayName"
+                                            SelectedValuePath="Serial"
+                                            ItemsSource="{Binding DeviceList}"
+                                            SelectedValue="{Binding SelectedItem.TrackerSN, ElementName=MarkerList, Mode=OneWay}"
+                                            Margin="0,0,5,0"
+                                            SelectionChanged="HandleMarkerDeviceSelected"
+                                        />-->
                                     </Grid>
                                     <Grid>
                                         <Grid.ColumnDefinitions>

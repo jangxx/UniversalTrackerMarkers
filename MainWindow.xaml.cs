@@ -1,7 +1,9 @@
-﻿using Microsoft.Win32;
+﻿using MathNet.Numerics.LinearAlgebra;
+using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -72,7 +74,20 @@ namespace UniversalTrackerMarkers
         private OscDisplayState _oscState = new OscDisplayState();
         public OscDisplayState OscState {  get { return _oscState; } }
 
-        private OpenVRManager _openVRManager = new OpenVRManager();
+        private bool _showSerialOnDevices = false;
+        public bool ShowSerialOnDevices
+        {
+            get { return _showSerialOnDevices; }
+            set
+            {
+                _showSerialOnDevices = value;
+                _openVRManager.SetSerialNumbersShown(_showSerialOnDevices);
+                RaisePropertyChanged(nameof(ShowSerialOnDevices));
+            }
+        }
+
+        private DirectXManager _directXManager = new DirectXManager();
+        private OpenVRManager _openVRManager;
         private OscListener? _oscListener;
 
         private bool _hasUnsavedChanges = false;
@@ -89,6 +104,8 @@ namespace UniversalTrackerMarkers
 
         public MainWindow()
         {
+            _openVRManager = new OpenVRManager(_directXManager);
+
             InitializeComponent();
             DataContext = this;
 
@@ -392,6 +409,17 @@ namespace UniversalTrackerMarkers
             if (selectedConfig != null)
             {
                 _currentConfig.Markers.Remove(selectedConfig);
+            }
+        }
+
+        private void HandleDuplicateMarkerClick(object sender, RoutedEventArgs e)
+        {
+            MarkerConfiguration? selectedConfig = (MarkerConfiguration)MarkerList.SelectedItem;
+
+            if (selectedConfig != null)
+            {
+                var clone = new MarkerConfiguration(selectedConfig);
+                _currentConfig.Markers.Add(clone);
             }
         }
 

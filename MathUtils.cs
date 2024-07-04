@@ -84,6 +84,11 @@ namespace UniversalTrackerMarkers
             return createTransformMatrix44(0, 0, 0, x, y, z, 1, 1, 1);
         }
 
+        public static Matrix<float> createTranslationMatrix44(Vector<float> vec)
+        {
+            return createTransformMatrix44(0, 0, 0, vec[0], vec[1], vec[2], 1, 1, 1);
+        }
+
         public static void fillTransformMatrix44(ref Matrix<float> mat, float rotX, float rotY, float rotZ, float translateX, float translateY, float translateZ, float scaleX, float scaleY, float scaleZ)
         {
             mat[0, 0] = Cosf(rotY) * Cosf(rotZ) * scaleX;
@@ -228,6 +233,48 @@ namespace UniversalTrackerMarkers
             }
 
             return hi;
+        }
+
+        public static Vector<float> Cross(Vector<float> a, Vector<float> b)
+        {
+            if (a.Count != 3 || b.Count != 3)
+            {
+                throw new ArgumentException("a and b must both be vectors with 3 elements");
+            }
+
+            var result = Vector<float>.Build.Dense(3);
+            result[0] = a[1] * b[2] - a[2] * b[1];
+            result[1] = a[2] * b[0] - a[0] * b[2];
+            result[2] = a[0] * b[1] - a[1] * b[0];
+
+            return result;
+        }
+
+        public static Matrix<float> LookAt44(Vector<float> from, Vector<float> to)
+        {
+            Vector<float> forward = (from - to).Normalize(2);
+
+            Vector<float> tmpUp = Vector<float>.Build.DenseOfArray(new float[] { 0, 1, 0 });
+
+            float dot = Math.Abs(forward.DotProduct(tmpUp));
+
+            if (dot == 1) // looking straight up or down
+            {
+                tmpUp = Vector<float>.Build.DenseOfArray(new float[] { 1, 0, 0 });
+            }
+
+            Vector<float> side = Cross(tmpUp, forward).Normalize(2);
+            Vector<float> up = Cross(forward, side).Normalize(2);
+
+            float[,] matrixData =
+            {
+                { side[0], up[0], forward[0], 0 },
+                { side[1], up[1], forward[1], 0 },
+                { side[2], up[2], forward[2], 0 },
+                { 0, 0, 0, 1 }
+            };
+
+            return Matrix<float>.Build.DenseOfArray(matrixData);
         }
     }
 }
