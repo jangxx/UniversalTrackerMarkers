@@ -87,7 +87,7 @@ namespace UniversalTrackerMarkers
 
             lock (_devices)
             {
-                _devices.Clear();
+                var validSerialNumbers = new HashSet<string>();
 
                 try
                 {
@@ -101,13 +101,25 @@ namespace UniversalTrackerMarkers
                         }
 
                         var serialNumber = GetStringTrackedDeviceProperty(idx, ETrackedDeviceProperty.Prop_SerialNumber_String);
+                        validSerialNumbers.Add(serialNumber);
 
-                        _devices.Add(serialNumber, new DeviceListEntry(deviceClass, idx, serialNumber));
+                        if (!_devices.ContainsKey(serialNumber))
+                        {
+                            _devices.Add(serialNumber, new DeviceListEntry(deviceClass, idx, serialNumber));
+                        }
                     }
                 }
                 catch (OVRException e)
                 {
                     MessageBox.Show("Updating tracked devices encountered an unexpected OpenVR error: " + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+
+                foreach(var serial in _devices.Keys)
+                {
+                    if (!validSerialNumbers.Contains(serial))
+                    {
+                        _devices.Remove(serial);
+                    }
                 }
             }
         }

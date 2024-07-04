@@ -156,7 +156,14 @@ namespace UniversalTrackerMarkers
                         var dWords = bytesConverter.Serialize(buffer[0..readBytes]);
                         messageConverter.Deserialize(dWords, out var oscMessage);
 
-                        ProcessOscMessage(oscMessage);
+                        try
+                        {
+                            ProcessOscMessage(oscMessage);
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
                     }
                 }
             }
@@ -194,10 +201,10 @@ namespace UniversalTrackerMarkers
             {
                 value = false;
             }
-            else if (argument.GetType() == typeof(int))
-            {
-                value = (int)argument != 0;
-            }
+            //else if (argument.GetType() == typeof(int))
+            //{
+            //    value = (int)argument != 0;
+            //}
             else
             {
                 return; // ignore
