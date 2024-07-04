@@ -1,0 +1,18 @@
+{
+	"source": "builtin",
+	"applications": [
+		{
+			"app_key": "com.jangxx.universal-tracker-markers",
+			"launch_type": "binary",
+			"binary_path_windows": "UniversalTrackerMarkers.exe",
+			"is_dashboard_overlay": true,
+
+			"strings": {
+				"en_us": {
+					"name": "Universal Tracker Markers",
+					"description": "Attach markers to any tracked object"
+				}
+			}
+		}
+	]
+}

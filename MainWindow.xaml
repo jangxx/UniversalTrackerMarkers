@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         xmlns:local="clr-namespace:UniversalTrackerMarkers"
         mc:Ignorable="d"
         Title="Universal Tracker Markers"
@@ -14,6 +15,7 @@
 >
     <Window.Resources>
         <local:IntConverter x:Key="IntConverter" />
+        <local:SerializableColorConverter x:Key="ColorConverter" />
         <ObjectDataProvider x:Key="ProximityDeviceEnum" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
             <ObjectDataProvider.MethodParameters>
                 <x:Type TypeName="local:EProximityDevice" />
@@ -108,6 +110,21 @@
                                     <local:LabeledSlider LabelWidth="100" LabelText="Overlay opacity" Min="0.01" Max="1.0"
                                         Value="{Binding SelectedItem.OverlayOpacity, ElementName=MarkerList, Mode=TwoWay}"
                                     />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="150"></ColumnDefinition>
+                                            <ColumnDefinition Width="*"></ColumnDefinition>
+                                        </Grid.ColumnDefinitions>
+                                        <Label  Grid.Column="0" Height="28" Content="Overlay color" HorizontalAlignment="Left"></Label>
+                                        <!--<TextBox Grid.Column="1" Height="20" Text="{Binding SelectedItem.TexturePath, ElementName=MarkerList}" Margin="0,0,5,0"></TextBox>-->
+                                        <xctk:ColorPicker
+                                            Grid.Column="1"
+                                            Height="25"
+                                            ColorMode="ColorCanvas"
+                                            UsingAlphaChannel="False"
+                                            SelectedColor="{Binding SelectedItem.OverlayColor, ElementName=MarkerList, Converter={StaticResource ColorConverter}}"
+                                        />
+                                    </Grid>
                                 </StackPanel>
                             </GroupBox>
                             <GroupBox Header="Transform">

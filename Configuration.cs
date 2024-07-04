@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Configuration;
-using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace UniversalTrackerMarkers
 {
@@ -126,6 +119,17 @@ namespace UniversalTrackerMarkers
             {
                 _overlayOpacity = value;
                 RaisePropertyChanged(nameof(OverlayOpacity));
+            }
+        }
+
+        private SerializableColor _overlayColor = SerializableColor.White;
+        public SerializableColor OverlayColor
+        {
+            get { return _overlayColor; }
+            set
+            {
+                _overlayColor = value;
+                RaisePropertyChanged(nameof(OverlayColor));
             }
         }
 
@@ -344,6 +348,15 @@ namespace UniversalTrackerMarkers
             if (jsonString == null) return null;
 
             return JsonSerializer.Deserialize<Configuration>(jsonString);
+        }
+
+        public static void WriteConfig(string path, Configuration config)
+        {
+            string jsonString = JsonSerializer.Serialize(config, new JsonSerializerOptions() {
+                WriteIndented = true
+            });
+
+            File.WriteAllText(path, jsonString);
         }
     }
 }

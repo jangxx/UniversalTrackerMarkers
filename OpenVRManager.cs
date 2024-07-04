@@ -65,6 +65,8 @@ namespace UniversalTrackerMarkers
 
     internal class OpenVRManager
     {
+        private static readonly string APPLICATION_KEY = "com.jangxx.universal-tracker-markers";
+
         private DirectXManager _directXManager;
 
         private CVRSystem? _cVR;
@@ -145,6 +147,31 @@ namespace UniversalTrackerMarkers
             return sb.ToString();
         }
 
+        private string GetApplicationPropertyString(EVRApplicationProperty prop)
+        {
+            EVRApplicationError err = EVRApplicationError.None;
+
+            StringBuilder sb = new StringBuilder(128);
+            uint propLen = OpenVR.Applications.GetApplicationPropertyString(APPLICATION_KEY, prop, sb, (uint)sb.Capacity, ref err);
+            if (err == EVRApplicationError.None)
+            {
+                return sb.ToString();
+            }
+            else if (err == EVRApplicationError.BufferTooSmall)
+            {
+                // try again with larger buffer
+                sb.Capacity = (int)propLen;
+                propLen = OpenVR.Applications.GetApplicationPropertyString(APPLICATION_KEY, prop, sb, (uint)sb.Capacity, ref err);
+            }
+
+            if (err != EVRApplicationError.None)
+            {
+                throw new OVRException(err.ToString());
+            }
+
+            return sb.ToString();
+        }
+
         public bool InitOverlay()
         {
             if (_cVR != null)
@@ -152,17 +179,70 @@ namespace UniversalTrackerMarkers
                 Shutdown();
             }
 
-            EVRInitError error = EVRInitError.None;
-            _cVR = OpenVR.Init(ref error, EVRApplicationType.VRApplication_Overlay);
+            var initError = EVRInitError.None;
+            _cVR = OpenVR.Init(ref initError, EVRApplicationType.VRApplication_Overlay);
 
-            if (error != EVRInitError.None)
+            if (initError != EVRInitError.None)
             {
-                MessageBox.Show("Error while connecting to SteamVR: " + error.ToString(), "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Error while connecting to SteamVR: " + initError.ToString(), "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
-            } 
+            }
+
+            RegisterApplication();
+
+            return true;
+        }
+
+        private void RegisterApplication()
+        {
+            // no error handling here since these methods failing really doesn't matter that much
+
+            var correctManifestPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "manifest.vrmanifest");
+
+            if (!OpenVR.Applications.IsApplicationInstalled(APPLICATION_KEY))
+            {
+                // just register the app and we are good
+                var result = OpenVR.Applications.AddApplicationManifest(correctManifestPath, false);
+
+                if (result == EVRApplicationError.None)
+                {
+                    Debug.WriteLine($"Successfully registered the manifest at location {correctManifestPath}");
+                }
+                else
+                {
+                    Debug.WriteLine($"Error while registering the manifest at location {correctManifestPath}: {result.ToString()}");
+                }
+            }
             else
             {
-                return true;
+                // make sure it's registered at the right path
+                var currentManifestDir = GetApplicationPropertyString(EVRApplicationProperty.WorkingDirectory_String);
+                var currentManifestPath = Path.Combine(currentManifestDir, "manifest.vrmanifest");
+
+                if (correctManifestPath != currentManifestPath)
+                {
+                    var result = OpenVR.Applications.RemoveApplicationManifest(currentManifestPath);
+
+                    if (result == EVRApplicationError.None)
+                    {
+                        Debug.WriteLine($"Successfully unregistered the manifest from location {currentManifestPath}");
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"Error while unregistering the manifest from location {currentManifestPath}: {result.ToString()}");
+                    }
+
+                    result = OpenVR.Applications.AddApplicationManifest(correctManifestPath, false);
+
+                    if (result == EVRApplicationError.None)
+                    {
+                        Debug.WriteLine($"Successfully registered the manifest at location {correctManifestPath}");
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"Error while registering the manifest at location {correctManifestPath}: {result.ToString()}");
+                    }
+                }
             }
         }
 
@@ -400,6 +480,9 @@ namespace UniversalTrackerMarkers
 
                         ThrowOVRError(OpenVR.Overlay.SetOverlayWidthInMeters(overlay.HandleFront, (float)marker.OverlayWidth));
                         ThrowOVRError(OpenVR.Overlay.SetOverlayWidthInMeters(overlay.HandleBack, (float)marker.OverlayWidth));
+
+                        ThrowOVRError(OpenVR.Overlay.SetOverlayColor(overlay.HandleFront, ((float)marker.OverlayColor.R) / 255f, ((float)marker.OverlayColor.G) / 255f, ((float)marker.OverlayColor.B) / 255f));
+                        ThrowOVRError(OpenVR.Overlay.SetOverlayColor(overlay.HandleBack, ((float)marker.OverlayColor.R) / 255f, ((float)marker.OverlayColor.G) / 255f, ((float)marker.OverlayColor.B) / 255f));
 
                         if (fullTexturePath != overlay.TexturePath)
                         {
