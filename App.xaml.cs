@@ -1,6 +1,4 @@
-﻿using System.Configuration;
-using System.Data;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
 
@@ -9,7 +7,7 @@ namespace UniversalTrackerMarkers
     /// <summary>
     /// Interaction logic for App.xaml
     /// </summary>
-    public partial class App : Application
+    public partial class App : System.Windows.Application
     {
         public static class Const
         {
@@ -56,9 +54,7 @@ namespace UniversalTrackerMarkers
                 }
             }
 
-            wnd.Show();
-
-            //wnd.ProcessStartupConfig();
+            wnd.ProcessStartupConfig();
         }
     }
 }

@@ -113,6 +113,22 @@ namespace UniversalTrackerMarkers
             return true;
         }
 
+        public void ProcessStartupConfig()
+        {
+            if (_currentConfig.Settings.StartMinimized)
+            {
+                if (_currentConfig.Settings.MinimizeToTray)
+                {
+                    TrayIcon.Visibility = Visibility.Visible;
+                    return;
+                }
+
+                WindowState = WindowState.Minimized;
+            }
+
+            Show();
+        }
+
         private void UpdateControllersAndTrackers()
         {
             _openVRManager.UpdateDevices();
@@ -204,6 +220,15 @@ namespace UniversalTrackerMarkers
             }
 
             _currentConfig.Osc.PropertyChanged += HandleOscConfigChanged;
+            _currentConfig.Settings.PropertyChanged += HandleGenericConfigChanged;
+        }
+
+        private void HandleGenericConfigChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (!_suppressInputEvents)
+            {
+                _hasUnsavedChanges = true;
+            }
         }
 
         private void HandleOscConfigChanged(object? sender, PropertyChangedEventArgs e)
@@ -468,6 +493,26 @@ namespace UniversalTrackerMarkers
                 _oscListener?.Stop();
                 _oscListener = null;
             }));
+        }
+
+        private void HandleTrayClicked(object sender, RoutedEventArgs e)
+        {
+            TrayIcon.Visibility = Visibility.Collapsed;
+
+            Show();
+            WindowState = WindowState.Normal;
+        }
+
+        private void HandleWindowStateChanged(object sender, EventArgs e)
+        {
+            if (WindowState == WindowState.Minimized)
+            {
+                if (_currentConfig.Settings.MinimizeToTray)
+                {
+                    TrayIcon.Visibility = Visibility.Visible;
+                    Hide();
+                }
+            }
         }
     }
 }

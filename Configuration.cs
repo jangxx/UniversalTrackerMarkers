@@ -331,12 +331,46 @@ namespace UniversalTrackerMarkers
         }
     }
 
+    public class SettingsConfiguration : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public void RaisePropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool _minimizeToTray = false;
+        public bool MinimizeToTray
+        {
+            get { return _minimizeToTray; }
+            set
+            {
+                _minimizeToTray = value;
+                RaisePropertyChanged(nameof(MinimizeToTray));
+            }
+        }
+
+        private bool _startMinimized = false;
+        public bool StartMinimized
+        {
+            get { return _startMinimized; }
+            set
+            {
+                _startMinimized = value;
+                RaisePropertyChanged(nameof(StartMinimized));
+            }
+        }
+    }
+
     public class Configuration
     {
         //public List<MarkerConfiguration> Markers { get; set; } = new List<MarkerConfiguration>();
         public ObservableCollection<MarkerConfiguration> Markers { get; set; } = new ObservableCollection<MarkerConfiguration>();
 
         public OscConfiguration Osc { get; set; } = new OscConfiguration();
+
+        public SettingsConfiguration Settings { get; set; } = new SettingsConfiguration();
     }
 
     public class ConfigLoader

@@ -15,11 +15,13 @@
     <RepositoryUrl>https://github.com/jangxx/UniversalTrackerMarkers.git</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Company>jangxx</Company>
+    <UseWindowsForms>False</UseWindowsForms>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="CoreOSC" Version="1.0.0" />
     <PackageReference Include="Extended.Wpf.Toolkit" Version="4.6.0" />
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="MathNet.Spatial" Version="0.6.0" />
     <PackageReference Include="Vortice.Direct3D11" Version="3.5.0" />
@@ -44,6 +46,10 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>\markers\%(Filename)%(Extension)</Link>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="assets\icon.ico" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">

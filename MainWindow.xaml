@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        xmlns:tb="http://www.hardcodet.net/taskbar"
         xmlns:local="clr-namespace:UniversalTrackerMarkers"
         mc:Ignorable="d"
         Title="Universal Tracker Markers"
@@ -12,6 +13,7 @@
         ResizeMode="CanMinimize"
         Closing="HandleMainWindowClosing"
         SizeToContent="Height"
+        StateChanged="HandleWindowStateChanged"
 >
     <Window.Resources>
         <local:IntConverter x:Key="IntConverter" />
@@ -22,13 +24,24 @@
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
     </Window.Resources>
+
     <DockPanel LastChildFill="True">
+        <tb:TaskbarIcon
+            IconSource="assets\icon.ico"
+            ToolTipText="Universal Tracker Markers"
+            Visibility="Collapsed"
+            x:Name="TrayIcon"
+            TrayLeftMouseUp="HandleTrayClicked"
+        />
+
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
                 <MenuItem Header="_Save config" Click="HandleSaveConfigButton" />
                 <MenuItem Header="_Refresh devices" Click="HandleRefreshDevicesButton" />
             </MenuItem>
             <MenuItem Header="_View">
+                <MenuItem Header="_Start minimized" IsCheckable="True" IsChecked="{Binding CurrentConfig.Settings.StartMinimized}"/>
+                <MenuItem Header="_Minimize to tray" IsCheckable="True" IsChecked="{Binding CurrentConfig.Settings.MinimizeToTray}"/>
                 <MenuItem Header="_Show serial numbers on devices" IsCheckable="True" IsChecked="{Binding ShowSerialOnDevices}"/>
             </MenuItem>
         </Menu>
