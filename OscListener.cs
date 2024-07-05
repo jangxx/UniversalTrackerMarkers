@@ -154,16 +154,20 @@ namespace UniversalTrackerMarkers
                         int readBytes = socket.Receive(buffer);
 
                         var dWords = bytesConverter.Serialize(buffer[0..readBytes]);
-                        messageConverter.Deserialize(dWords, out var oscMessage);
+
+                        OscMessage oscMessage;
 
                         try
                         {
-                            ProcessOscMessage(oscMessage);
+                            messageConverter.Deserialize(dWords, out oscMessage);
                         }
                         catch
                         {
-                            // ignore
+                            continue; // ignore
                         }
+
+                        ProcessOscMessage(oscMessage);
+                       
                     }
                 }
             }
