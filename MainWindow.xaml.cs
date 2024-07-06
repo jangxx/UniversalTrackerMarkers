@@ -11,10 +11,37 @@ using Path = System.IO.Path;
 
 namespace UniversalTrackerMarkers
 {
-    public class DisplayDeviceListItem
+    public class DisplayDeviceListItem : INotifyPropertyChanged
     {
-        public string Serial { get; set; }
-        public bool Exists { get; set; }
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public void RaisePropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private string _serial;
+        public string Serial {
+            get { return _serial; }
+            set
+            {
+                _serial = value;
+                RaisePropertyChanged(nameof(Serial));
+                RaisePropertyChanged(nameof(DisplayName));
+            }
+        }
+
+        private bool _exists;
+        public bool Exists {
+            get { return _exists; }
+            set
+            {
+                _exists = value;
+                RaisePropertyChanged(nameof(Exists));
+                RaisePropertyChanged(nameof(DisplayName));
+            }
+        }
+
         public ETrackedDeviceClass Type { get; set; }
 
         public string DisplayName
@@ -108,6 +135,9 @@ namespace UniversalTrackerMarkers
             if (!initOVRResult) return false;
 
             UpdateControllersAndTrackers();
+
+            _openVRManager.ShutdownRequested += HandleOVRShutdownRequested;
+            _openVRManager.DevicesChanged += HandleOVRDevicesChanged;
 
             _openVRManager.StartThread();
             return true;
@@ -513,6 +543,26 @@ namespace UniversalTrackerMarkers
                     Hide();
                 }
             }
+        }
+
+        private void HandleOVRDevicesChanged(object? sender, EventArgs e)
+        {
+            var dispatcher = Application.Current.Dispatcher;
+            dispatcher.BeginInvoke(new Action(() =>
+            {
+                UpdateControllersAndTrackers();
+                UpdateOverlays();
+            }));
+        }
+
+        private void HandleOVRShutdownRequested(object? sender, EventArgs e)
+        {
+            var dispatcher = Application.Current.Dispatcher;
+            dispatcher.BeginInvoke(new Action(() =>
+            {
+                _openVRManager?.Shutdown();
+                Application.Current.Shutdown();
+            }));
         }
     }
 }

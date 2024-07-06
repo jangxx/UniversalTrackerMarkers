@@ -18,6 +18,7 @@ using Valve.VR;
 using Vortice.Direct3D11;
 using static System.Net.Mime.MediaTypeNames;
 using System.Reflection.Metadata;
+using System.Runtime.InteropServices;
 
 namespace UniversalTrackerMarkers
 {
@@ -76,6 +77,9 @@ namespace UniversalTrackerMarkers
         private Dictionary<int, ExistingOverlay> _overlays = new Dictionary<int, ExistingOverlay>();
         private bool _serialNumbersShown = false;
 
+        public event EventHandler? DevicesChanged;
+        public event EventHandler? ShutdownRequested;
+        
         public OpenVRManager(DirectXManager directXManager)
         {
             _directXManager = directXManager;
@@ -262,6 +266,8 @@ namespace UniversalTrackerMarkers
         {
             if (_cVR != null)
             {
+                StopThread();
+
                 OpenVR.Shutdown();
                 _cVR = null;
             }
@@ -398,6 +404,8 @@ namespace UniversalTrackerMarkers
 
         public void UpdateOverlays(IEnumerable<MarkerConfiguration> markers)
         {
+            if (_cVR == null) return;
+
             try
             {
                 lock (_overlays)
@@ -578,12 +586,36 @@ namespace UniversalTrackerMarkers
         {
             TrackedDevicePose_t[] poses = new TrackedDevicePose_t[OpenVR.k_unMaxTrackedDeviceCount];
 
+            var nextEvent = new VREvent_t();
+            var eventSize = (uint)Marshal.SizeOf(nextEvent);
+
             while (true)
             {
                 if (_cancelTokenSource.Token.WaitHandle.WaitOne(20)) // run at 50ish fps
                 {
                     return; // cancellation was requested
                 }
+
+                // handle openvr events
+                while (OpenVR.System.PollNextEvent(ref nextEvent, eventSize))
+                {
+                    switch(nextEvent.eventType)
+                    {
+                        case (uint)EVREventType.VREvent_TrackedDeviceActivated:
+                        case (uint)EVREventType.VREvent_TrackedDeviceDeactivated:
+                        case (uint)EVREventType.VREvent_TrackedDeviceUpdated:
+                            Debug.WriteLine("Got devices changed event");
+                            DevicesChanged?.Invoke(this, new EventArgs());
+                            break;
+                        case (uint)EVREventType.VREvent_Quit:
+                            Debug.WriteLine("Got shutdown event");
+                            ShutdownRequested?.Invoke(this, new EventArgs());
+                            break;
+
+                    }
+                }
+
+                // make proximity system work
 
                 OpenVR.System.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseRawAndUncalibrated, 0, poses);
 
@@ -655,6 +687,8 @@ namespace UniversalTrackerMarkers
                         }
                     }
                 }
+
+                // show and rotate serial numbers
 
                 if (_serialNumbersShown)
                 {
