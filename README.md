@@ -2,6 +2,8 @@
 
 > A SteamVR utility to display markers relative to any tracked device (including Lighthouses).
 
+![screenshot with tracked devices and markers](/assets/github/screenshot6.png)
+
 ## Features
 
 - Attach any PNG or other image to a tracked device

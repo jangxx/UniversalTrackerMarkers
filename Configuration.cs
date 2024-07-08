@@ -37,6 +37,8 @@ namespace UniversalTrackerMarkers
             _trackerSN = cloneFrom._trackerSN;
             _texturePath = cloneFrom._texturePath;
             _overlayOpacity = cloneFrom._overlayOpacity;
+            _overlayColor = cloneFrom._overlayColor;
+
             _overlayWidth = cloneFrom._overlayWidth;
             _offsetX = cloneFrom._offsetX;
             _offsetY = cloneFrom._offsetY;
